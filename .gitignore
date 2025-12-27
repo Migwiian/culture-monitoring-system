@@ -1,0 +1,40 @@
+<< 'EOF'
+data/raw/
+data/processed/*.parquet
+*.csv
+*.parquet
+*.feather
+
+# Models (large binaries)
+models/*.pkl
+models/*.bin
+
+# Secrets
+.env
+*.env
+.kaggle/
+credentials/
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# MLflow
+mlruns/
+mlflow.db
+EOF
