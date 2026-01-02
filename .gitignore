@@ -38,3 +38,6 @@ Thumbs.db
 mlruns/
 mlflow.db
 EOF
+# Project Specific
+.venv/
+mlartifacts/

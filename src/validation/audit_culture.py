@@ -27,7 +27,7 @@ def load_processed_data(data_path: Path) -> pd.DataFrame:
 def validate_voluntas_index(df: pd.DataFrame) -> dict:
     """
     Core validation: Does voluntas_index actually predict overall_rating?
-    If not, our feature engineering is garbage.
+    If not, we need to revise our feature engineering strategy.
     """
     # 1. CORRELATION ANALYSIS
     correlation = df['voluntas_index'].corr(df['overall_rating'])
@@ -64,7 +64,7 @@ def validate_voluntas_index(df: pd.DataFrame) -> dict:
         .head(10)
     )
     for rank, (firm, gap) in enumerate(risk_firms.items(), 1):
-        status = "🔥 CRITICAL" if gap > 1.0 else "⚠️  WARNING"
+        status = "CRITICAL" if gap > 1.0 else "WARNING"
         logger.info(f"   {rank:2d}. {firm:<30} | Gap: {gap:.2f} {status}")
     
     return {
@@ -88,7 +88,7 @@ def detect_anomalies(df: pd.DataFrame) -> None:
     if 'overall_rating' in df.columns:
         invalid_ratings = df[~df['overall_rating'].between(1.0, 5.0)]
         if len(invalid_ratings) > 0:
-            logger.error(f"❌ {len(invalid_ratings)} rows have invalid ratings")
+            logger.error(f"{len(invalid_ratings)} rows have invalid ratings")
     
     # 3. Voluntās Index Outliers
     q1 = df['voluntas_index'].quantile(0.25)
@@ -102,7 +102,7 @@ def detect_anomalies(df: pd.DataFrame) -> None:
 
 def generate_feature_report(df: pd.DataFrame) -> None:
     """Generate statistical report for each engineered feature"""
-    logger.info("\nFEATURE STATISTICS:")
+    logger.info("\n FEATURE STATISTICS:")
     
     key_features = [
         'purpose_score', 'belonging_score', 'growth_score',
@@ -133,7 +133,7 @@ if __name__ == "__main__":
         # 1. Load data
         df = load_processed_data(DATA_PATH)
         
-        # 2. Validate the index (CRITICAL GUT CHECK)
+        # 2. Validate the index
         results = validate_voluntas_index(df)
         
         # 3. Detect anomalies
@@ -152,3 +152,6 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Audit failed: {str(e)}")
         raise
+
+outliers = df[(df['voluntas_index'] < 1.5) | (df['voluntas_index'] > 4.5)]
+print("Outlier firms:", outliers['firm'].value_counts().head())
