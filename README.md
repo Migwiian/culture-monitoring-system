@@ -1,53 +1,77 @@
 # Voluntās Culture Intelligence System
 
-**Operationalizing Global Meaningfulness Through MLOps**
+**Operationalizing Meaningfulness: An MLOps-Driven Approach to Workplace Culture Monitoring**
 
 ---
 
-## 🎯 Problem
+## Project Inspiration
 
-Voluntās advises Fortune 500 companies on workplace culture, but their manual survey methodology is:
-- **Slow**: Annual surveys = 6-month lag time
-- **Expensive**: $200-500/hour consulting rates limit scale
-- **Reactive**: Advisors can't prevent talent loss, only report it
-
-## 💡 Solution
-
-A **production ML pipeline** that continuously monitors employee sentiment across 850K+ Glassdoor reviews, predicts culture degradation, and alerts consultants in real-time.
+This system draws from Voluntās' philosophy of measuring workplace meaningfulness through four core pillars—Purpose, Belonging, Growth, and Leadership—and operationalizes it as a production ML pipeline. Rather than replacing Voluntās' methodology, we scale it: transforming annual consulting insights into continuous, data-driven culture monitoring.
 
 ---
 
-## 🏗️ Architecture
+## Current State
 
-- **Data**: 850K Glassdoor reviews (global, 2008-2024)
-- **Orchestration**: Prefect for weekly retraining
-- **Experiment Tracking**: MLflow for model comparison
-- **Deployment**: FastAPI microservice for predictions
-- **Monitoring**: Evidently + Grafana for drift detection
-- **CI/CD**: GitHub Actions for automated deployment
+**Built:**
+- **Data Pipeline:** Processes 838K Glassdoor reviews (2008-2024) into engineered features
+- **Feature Engineering:** Voluntās Meaningfulness Index (weighted composite of culture pillars)
+- **Model Comparison:** LinearRegression + 2 XGBoost variants with temporal validation
+- **Experiment Tracking:** MLflow logs all runs, parameters, and artifacts
+- **Leakage Protection:** Train-only imputation, temporal splits, feature flags
+- **Orchestration:** Prefect flow structure (requires Prefect 3.x compatibility fixes)
+
+**Pending:**
+- Service deployment (FastAPI)
+- Drift monitoring (Evidently)
+- CI/CD pipeline (GitHub Actions)
+- Automated weekly retraining schedule
 
 ---
 
-## 🚀 Quick Start
+## Architecture
 
-```bash
-# 1. Clone and setup
-git clone &lt;repo&gt;
-cd voluntas-culture-intelligence
+```mermaid
+flowchart TD
+    A[Raw Reviews] --&gt; B[Feature Engineering]
+    B --&gt; C[Temporal Split]
+    C --&gt; D[Train Models]
+    D --&gt; E[MLflow Tracking]
+    E --&gt; F[Prefect Orchestration]
+    F --&gt; G[FastAPI Service]
+    G --&gt; H[Evidently Monitoring]
+```
+
+## Quick Start
+``` bash
+# Setup environment
 make setup
 
-# 2. Place your 850K CSV in data/raw/
-# File: glassdoor_reviews.csv
-
-# 3. Validate & clean data
+# Process data (requires data/raw/glassdoor_reviews.csv)
 make data
 
-# 4. Train model
+# Train models (logs to MLflow)
 make train
 
-# 5. Run API
-make api
-# → http://localhost:9696/predict/Tesla
+# View results
+# open http://localhost:5000
+```
 
-# 6. Deploy full stack
-make deploy
+## Technical Implementation
+* Data: 838,566 reviews, 28 engineered features, 0% missing values
+* Models: LinearRegression + XGBoost (2 hyperparameter sets)
+* Validation: Temporal split (2020-11-19 cutoff), MAE=0.562
+* Orchestration: Prefect 3.x compatible flow structure
+* Tracking: MLflow at http://localhost:5000
+
+## Repository Structure
+├── data/
+│   ├── raw/          # 850K Glassdoor CSV (not committed)
+│   └── processed/    # Parquet files (generated)
+├── src/
+│   ├── data/         # make_dataset.py
+│   ├── models/       # train.py (multiple models)
+│   ├── orchestration/# flow.py (Prefect)
+│   └── monitoring/   # drift detection (TODO)
+├── deployment/       # FastAPI service (TODO)
+├── models/           # Serialized models
+└── tests/            # Unit tests (TODO)
