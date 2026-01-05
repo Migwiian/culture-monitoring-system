@@ -5,9 +5,6 @@ data/processed/*.parquet
 *.parquet
 *.feather
 
-# Models (large binaries)
-models/*.pkl
-models/*.bin
 
 # Secrets
 .env
