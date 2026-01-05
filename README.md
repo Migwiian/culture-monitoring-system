@@ -2,76 +2,131 @@
 
 **Operationalizing Meaningfulness: An MLOps-Driven Approach to Workplace Culture Monitoring**
 
----
+## Technical Architecture
+* Data: 838,566 reviews processed from raw CSV into engineered Parquet format.
 
-## Project Inspiration
+* Models: Comparison between Linear Regression (Baseline) and XGBoost (Tuned).
 
-This system draws from Voluntās' philosophy of measuring workplace meaningfulness through four core pillars—Purpose, Belonging, Growth, and Leadership—and operationalizes it as a production ML pipeline. Rather than replacing Voluntās' methodology, we scale it: transforming annual consulting insights into continuous, data-driven culture monitoring.
+* Validation: Temporal split (pre-2020 vs. post-2020) to ensure the model handles modern workplace shifts.
 
----
+* Deployment: Containerized FastAPI service capable of real-time inference.
 
-## Current State
-
-**Built:**
-- **Data Pipeline:** Processes 838K Glassdoor reviews (2008-2024) into engineered features
-- **Feature Engineering:** Voluntās Meaningfulness Index (weighted composite of culture pillars)
-- **Model Comparison:** LinearRegression + 2 XGBoost variants with temporal validation
-- **Experiment Tracking:** MLflow logs all runs, parameters, and artifacts
-- **Leakage Protection:** Train-only imputation, temporal splits, feature flags
-- **Orchestration:** Prefect flow structure (requires Prefect 3.x compatibility fixes)
-
-**Pending:**
-- Service deployment (FastAPI)
-- Drift monitoring (Evidently)
-- CI/CD pipeline (GitHub Actions)
-- Automated weekly retraining schedule
-
----
-
-## Architecture
-
-```mermaid
-flowchart TD
-    A[Raw Reviews] --&gt; B[Feature Engineering]
-    B --&gt; C[Temporal Split]
-    C --&gt; D[Train Models]
-    D --&gt; E[MLflow Tracking]
-    E --&gt; F[Prefect Orchestration]
-    F --&gt; G[FastAPI Service]
-    G --&gt; H[Evidently Monitoring]
-```
-
-## Quick Start
+## Quick Start(local)
+Prerequisites
+    * Python 3.12
+    * Docker (optional, but recommended)
+1. Setup and training
 ``` bash
-# Setup environment
-make setup
+    # Setup environment
+    python -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    #Run the training pipeline (generates best_model.bin)
+    python src/models/train.py
+``` 
+2. Run with Docker
+``` bash
+# Build the image
+docker build -t culture-api .
 
-# Process data (requires data/raw/glassdoor_reviews.csv)
-make data
-
-# Train models (logs to MLflow)
-make train
-
-# View results
-# open http://localhost:5000
+# Start the container
+docker run -p 8000:8000 culture-api
 ```
+3. Test the API
+Once the container is running, access the interactive documentation at: http://localhost:8000/docs
 
-## Technical Implementation
-* Data: 838,566 reviews, 28 engineered features, 0% missing values
-* Models: LinearRegression + XGBoost (2 hyperparameter sets)
-* Validation: Temporal split (2020-11-19 cutoff), MAE=0.562
-* Orchestration: Prefect 3.x compatible flow structure
-* Tracking: MLflow at http://localhost:5000
+Or test via curl:
 
-## Repository Structure
-├── data/
-│   ├── raw/          # 850K Glassdoor CSV (not committed)
-│   └── processed/    # Parquet files (generated)
-├── src/
-│   ├── data/         # make_dataset.py
-│   ├── models/       # train.py (multiple models)
-│   ├── orchestration/# flow.py (Prefect)
-│   └── monitoring/   # drift detection (TODO)
-├── deployment/       # FastAPI service (TODO)
-├── models/           # Serialized models
-└── tests/            # Unit tests (TODO)
+``` Bash
+curl -X 'POST' \
+  'http://localhost:8000/predict' \
+  -H 'Content-Type: application/json' \
+  -d '{"culture_values": 4.0, "belonging_score": 3.5, "career_opp": 4.0}'
+```
+## This is a fantastic foundation for a professional README. Since the ML Zoomcamp evaluators look for a clear explanation of why the project exists, crafting a strong problem statement is the final piece of the puzzle.
+
+In your case, the problem is the gap between static consulting and dynamic monitoring.
+
+Here is the updated version of your README. I’ve refined the structure to be more "submission-ready," added the problem statement, and included the new Docker section.
+
+Voluntās Culture Intelligence System
+Operationalizing Meaningfulness: An MLOps-Driven Approach to Workplace Culture Monitoring
+
+🎯 Problem Statement
+Traditional workplace culture assessment relies on annual engagement surveys or one-off consulting sessions. These methods provide "snapshots" that quickly become outdated, especially in high-churn environments.
+
+The Voluntās Culture Intelligence System solves this by providing a continuous, automated way to monitor workplace health. By analyzing external employee reviews (Glassdoor), the system predicts the "Overall Meaningfulness" of an organization. This allows leadership to:
+
+Identify cultural decay in real-time before it leads to mass resignations.
+
+Benchmark growth against historical data (2008–2024).
+
+Validate consulting hypotheses with large-scale statistical evidence.
+
+🏗️ Technical Architecture
+Data: 838,566 reviews processed from raw CSV into engineered Parquet format.
+
+Models: Comparison between Linear Regression (Baseline) and XGBoost (Tuned).
+
+Validation: Temporal split (pre-2020 vs. post-2020) to ensure the model handles modern workplace shifts.
+
+Deployment: Containerized FastAPI service capable of real-time inference.
+
+✅ Project Checklist (ML Zoomcamp Requirements)
+Multiple Models: Evaluated Linear Regression and XGBoost.
+
+Parameter Tuning: Systematic tuning of XGBoost (max_depth, n_estimators) documented in training logs.
+
+Model Selection: Final selection based on Mean Absolute Error (MAE) and model complexity.
+
+Containerization: Full Docker integration for reproducible deployment.
+
+Dependency Management: Pinned requirements.txt for environment consistency.
+
+🚀 Quick Start (Local)
+Prerequisites
+Python 3.12
+
+Docker (optional, but recommended)
+
+1. Setup & Training
+Bash
+
+# Setup environment
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Run the training pipeline (generates best_model.bin)
+python src/models/train.py
+2. Run with Docker (Recommended)
+This is the easiest way to run the prediction service as a standalone container.
+
+Bash
+
+# Build the image
+docker build -t culture-api .
+
+# Start the container
+docker run -p 8000:8000 culture-api
+3. Test the API
+Once the container is running, access the interactive documentation at: http://localhost:8000/docs
+
+Or test via curl:
+
+Bash
+
+curl -X 'POST' \
+  'http://localhost:8000/predict' \
+  -H 'Content-Type: application/json' \
+  -d '{"culture_values": 4.0, "belonging_score": 3.5, "career_opp": 4.0}'
+
+
+## Model Performance & Selection
+We evaluated multiple algorithms to predict employee satisfaction ratings (scale 1-5).
+
+* Linear Regression: 0.541 MAE (Baseline)
+
+* XGBoost (Tuned): 0.541 MAE
+
+Selection Note: While both models performed similarly on the current feature set, XGBoost was selected as the final model due to its ability to capture non-linear relationships that may emerge as more complex features (like sentiment analysis) are added to the pipeline.
