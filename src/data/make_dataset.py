@@ -83,32 +83,45 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     # TARGET: Drop only rows without the regression target
     # ----------------------------------------------------------------------
     initial_row_count = len(df)
+    # Drop rows without overall_rating (regression target)
     df = df.dropna(subset=['overall_rating'])
     logger.info(f"Target preservation: {initial_row_count:,} -> {len(df):,} rows")
-    
+
     # ----------------------------------------------------------------------
     # TEMPORAL: Add time-based features for drift detection
     # ----------------------------------------------------------------------
     if 'date_review' in df.columns:
-        df['date_review'] = pd.to_datetime(df['date_review'], errors='coerce')
-        df['days_since_review'] = (pd.Timestamp.now() - df['date_review']).dt.days
-        logger.info("Added temporal features")
-    
+        try:
+            # Convert date_review to datetime format
+            df['date_review'] = pd.to_datetime(df['date_review'], errors='coerce')
+        except ValueError as e:
+            logger.error(f"Failed to parse date_review column: {str(e)}")
+        else:
+            # Calculate days since review for drift detection
+            df['days_since_review'] = (pd.Timestamp.now() - df['date_review']).dt.days
+            logger.info("Added temporal features")
+
     # ----------------------------------------------------------------------
     # CATEGORICAL: Optimize memory for high-cardinality string columns
     # ----------------------------------------------------------------------
     categorical_cols = ['firm', 'job_title', 'location']
     for col in categorical_cols:
         if col in df.columns:
-            df[col] = df[col].astype('category')
-            logger.info(f"Optimized '{col}' as category")
-    
+            try:
+                # Convert categorical columns to category dtype
+                df[col] = df[col].astype('category')
+            except TypeError as e:
+                logger.error(f"Failed to convert {col} to category: {str(e)}")
+            else:
+                logger.info(f"Optimized '{col}' as category")
+
     # ----------------------------------------------------------------------
     # BELONGING SCORE: Handle missing pillar data intelligently
     # ----------------------------------------------------------------------
     belonging_pillars = ['work_life_balance', 'senior_mgmt', 'diversity_inclusion']
     
     # Phase 1: Use available data (partial missingness OK)
+    # Calculate mean of available belonging pillars
     df['belonging_score'] = df[belonging_pillars].mean(axis=1, skipna=True)
     
     # Phase 2: Impute rows where ALL pillars are missing
@@ -140,7 +153,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
             missing_rate = df[pillar].isna().mean()
             logger.warning(f"{pillar}: {missing_rate:.1%} missing")
         
-            # Flag before imputation (MLOps best practice)
+            # Flag before imputation (MLOPS best practice)
             df[f'{pillar}_imputed'] = df[pillar].isna()
         
             # Median imputation

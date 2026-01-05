@@ -87,33 +87,33 @@ def train_xgboost(X_train, y_train, X_val, y_val, params: dict, run_name: str):
 
 def main():
     """Execute training pipeline: baseline + 2 XGBoost variants."""
-    mlflow.set_tracking_uri("http://localhost:5000")
-    project_root = Path(__file__).resolve().parent.parent.parent
-    data_path = project_root / "data" / "processed" / "culture_intelligence_v1.parquet"
-    
-    df = load_data(data_path)
-    X, y = create_features(df)
-    train_df, val_df = split_temporal(df)
-    X_train, y_train = create_features(train_df)
-    X_val, y_val = create_features(val_df)
-    
-    # Train multiple models and log results
-    results = {}
-    
-    results['linear_baseline'] = train_baseline(X_train, y_train, X_val, y_val)
-    
-    results['xgb_v1'] = train_xgboost(X_train, y_train, X_val, y_val, 
-                                     {'n_estimators': 100, 'max_depth': 4}, "xgb_v1")
-    
-    results['xgb_v2'] = train_xgboost(X_train, y_train, X_val, y_val, 
-                                     {'n_estimators': 200, 'max_depth': 6}, "xgb_v2")
+    try:
+        mlflow.set_tracking_uri(str(Path(__file__).resolve().parent.parent.parent / "mlruns"))
+        mlflow.set_experiment("culture-intelligence-v1")
+        project_root = Path(__file__).resolve().parent.parent.parent
+        data_path = project_root / "data" / "processed" / "culture_intelligence_v1.parquet"
 
-    # Compare models to find the best one
-    best_model_name = min(results, key=results.get)
-    best_mae = results[best_model_name]
-    model_path = project_root / "models" / "best_model.bin"
-    joblib.dump(best_model_name, model_path)
-    logger.info(f"Successfully saved {best_model_name} to {model_path}")
+        data = load_data(data_path)
+        if data is None or data.empty:
+            raise ValueError("Loaded data is empty")
+
+        features, target = create_features(data)
+        if features is None or target is None:
+            raise ValueError("Feature extraction resulted in empty data")
+
+        train_features, val_features, train_target, val_target = train_test_split(features, target, test_size=0.2, random_state=42)
+
+        models = {}
+        models['linear_baseline'] = train_baseline(train_features, train_target, val_features, val_target)
+        models['xgb_v1'] = train_xgboost(train_features, train_target, val_features, val_target, {'n_estimators': 100, 'max_depth': 4}, "xgb_v1")
+        models['xgb_v2'] = train_xgboost(train_features, train_target, val_features, val_target, {'n_estimators': 200, 'max_depth': 6}, "xgb_v2")
+
+        best_model_name = min(models, key=lambda x: models[x][0])
+        best_mae, best_model_object = models[best_model_name]
+        model_path = project_root / "models" / "best_model.bin"
+        joblib.dump(best_model_object, model_path)
+    except Exception as e:
+        logger.error(f"An error occurred during training: {str(e)}")
 
 if __name__ == "__main__":
     main()
