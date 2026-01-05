@@ -47,3 +47,13 @@ curl -X 'POST' \
   'http://localhost:8000/predict' \
   -H 'Content-Type: application/json' \
   -d '{"culture_values": 4.0, "belonging_score": 3.5, "career_opp": 4.0}'
+```
+
+## Model Performance & Selection
+We evaluated multiple algorithms to predict employee satisfaction ratings (scale 1-5).
+
+* Linear Regression: 0.541 MAE (Baseline)
+
+* XGBoost (Tuned): 0.541 MAE
+
+Selection Note: While both models performed similarly on the current feature set, XGBoost was selected as the final model due to its ability to capture non-linear relationships that may emerge as more complex features (like sentiment analysis) are added to the pipeline.
