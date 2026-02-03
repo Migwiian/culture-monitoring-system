@@ -38,4 +38,8 @@ def predict(data: CultureData):
         "status": "success"
     }
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 # To run this: uvicorn predict:app --reload

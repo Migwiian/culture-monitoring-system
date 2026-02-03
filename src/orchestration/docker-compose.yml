@@ -1,0 +1,53 @@
+version: '3.8'
+services:
+  kestra:
+    image: kestra/kestra:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - KESTRA_SERVER_PLUGINS_PATH=/app/plugins
+      - KESTRA_SERVER_INTERNAL_STORAGE_TYPE=LOCAL
+      - KESTRA_SERVER_INTERNAL_STORAGE_LOCAL_PATH=/tmp/kestra
+      - KESTRA_SERVER_QUEUE_TYPE=MEMORY
+      - KESTRA_SERVER_INDEXER_TYPE=ELASTICSEARCH
+      - KESTRA_ELASTICSEARCH_CLIENT_HOST=elasticsearch:9200
+      - KESTRA_ELASTICSEARCH_CLIENT_PROTOCOL=HTTP
+      - KESTRA_ELASTICSEARCH_CLIENT_USER=elastic
+      - KESTRA_ELASTICSEARCH_CLIENT_PASSWORD=changeme
+      - KESTRA_SERVER_DATABASE_TYPE=POSTGRESQL
+      - KESTRA_POSTGRESQL_CLIENT_HOST=postgresql
+      - KESTRA_POSTGRESQL_CLIENT_PORT=5432
+      - KESTRA_POSTGRESQL_CLIENT_DATABASE=kestra
+      - KESTRA_POSTGRESQL_CLIENT_USER=kestra
+      - KESTRA_POSTGRESQL_CLIENT_PASSWORD=kestra
+    volumes:
+      - kestra_data:/tmp/kestra
+    depends_on:
+      - elasticsearch
+      - postgresql
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.6
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false # Disable security for simplicity in dev
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  postgresql:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=kestra
+      - POSTGRES_USER=kestra
+      - POSTGRES_PASSWORD=kestra
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+
+volumes:
+  kestra_data:
+  elasticsearch_data:
+  postgresql_data:

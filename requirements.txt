@@ -8,3 +8,4 @@ joblib==1.5.3
 pydantic==2.12.5
 python-multipart>=0.0.12
 mlflow==3.8.0
+kestra==0.16.0
