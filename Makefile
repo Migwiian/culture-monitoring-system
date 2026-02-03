@@ -1,4 +1,4 @@
-.PHONY: setup data train api test deploy clean
+.PHONY: setup data train api test kestra clean
 
 # Install dependencies
 setup:
@@ -9,21 +9,24 @@ setup:
 data:
 	python src/data/make_dataset.py
 
-# Train model (with MLflow)
+# Train model with MLflow (for experimentation)
 train:
 	mlflow run . --experiment-name "voluntas_culture"
 
 # Run FastAPI service (local)
 api:
-	uvicorn src/services.api:app --host 0.0.0.0 --port 9696 --reload
+	uvicorn deployment.api.app:app --host 0.0.0.0 --port 9696 --reload
 
 # Test pipeline
 test:
 	pytest tests/ -v
 
-# Deploy to Docker
-deploy:
-	docker-compose -f deployment/docker-compose.yml up -d --build
+# Orchestrate the full pipeline with Kestra
+kestra:
+	@echo "To run the full pipeline with Kestra:"
+	@echo "1. Make sure Kestra is running."
+	@echo "2. In the Kestra UI, create a new flow using 'src/orchestration/kestra.yml'."
+	@echo "3. Run the flow from the Kestra UI."
 
 # Clean artifacts
 clean:

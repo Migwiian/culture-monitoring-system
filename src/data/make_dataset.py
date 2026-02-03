@@ -204,10 +204,10 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 def main():
     """Main execution pipeline with error handling"""
     # Use robust path resolution (works from any directory)
-    project_root = Path(__file__).resolve().parent.parent.parent
+    # project_root = Path(__file__).resolve().parent.parent.parent
     
-    input_path = project_root / "data" / "raw" / "glassdoor_reviews.csv"
-    output_path = project_root / "data" / "processed" / "culture_intelligence_v1.parquet"
+    input_path = Path(__file__).resolve().parent / "glassdoor_reviews.csv"
+    output_path = Path(__file__).resolve().parent / "processed" / "culture_intelligence_v1.parquet"
     
     # Ensure output directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
