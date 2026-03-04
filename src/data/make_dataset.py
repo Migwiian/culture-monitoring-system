@@ -10,6 +10,22 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import logging
+import sys
+import json
+from datetime import date
+from pandera import Column, DataFrameSchema, Check
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
+from src.config import (
+    RAW_DATA_DIR,
+    PROCESSED_DATA_DIR,
+    RAW_DATA_FILENAME,
+    PROCESSED_DATA_FILENAME,
+)
 
 # Setup Logging
 logging.basicConfig(
@@ -45,18 +61,37 @@ def validate_raw_data(input_path: Path) -> pd.DataFrame:
 
     # Required columns for Voluntās pillars
     required_columns = [
-        'overall_rating',      # Regression target
-        'culture_values',      # Purpose proxy
-        'work_life_balance',   # Belonging component
-        'senior_mgmt',         # Belonging component  
-        'diversity_inclusion', # Belonging component
-        'career_opp'           # Growth proxy
+        "overall_rating",      # Regression target
+        "culture_values",      # Purpose proxy
+        "work_life_balance",   # Belonging component
+        "senior_mgmt",         # Belonging component
+        "diversity_inclusion", # Belonging component
+        "career_opp",          # Growth proxy
     ]
     
     missing_cols = [col for col in required_columns if col not in df_sample.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
     
+    # Lightweight schema validation (coerce numerics + range checks)
+    schema = DataFrameSchema(
+        {
+            "overall_rating": Column(
+                float,
+                coerce=True,
+                nullable=False,
+                checks=Check.in_range(1.0, 5.0),
+            ),
+            "culture_values": Column(float, coerce=True, nullable=True, checks=Check.in_range(1.0, 5.0)),
+            "work_life_balance": Column(float, coerce=True, nullable=True, checks=Check.in_range(1.0, 5.0)),
+            "senior_mgmt": Column(float, coerce=True, nullable=True, checks=Check.in_range(1.0, 5.0)),
+            "diversity_inclusion": Column(float, coerce=True, nullable=True, checks=Check.in_range(1.0, 5.0)),
+            "career_opp": Column(float, coerce=True, nullable=True, checks=Check.in_range(1.0, 5.0)),
+        },
+        strict=False,
+    )
+    schema.validate(df_sample, lazy=True)
+
     logger.info("Schema validation successful.")
     return df_sample
 
@@ -163,23 +198,27 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
         else:
             df[f'{pillar}_imputed'] = False
     # ----------------------------------------------------------------------
-    # VOLUNTĀS INDEX: Weighted composite metric (Purpose 40%, Belonging 30%, Growth 30%)
+    # MWQ PROXY: Four Voluntas pillars (Purpose, Leadership, Belonging, Growth)
     # ----------------------------------------------------------------------
-    df['voluntas_index'] = (
-        df['culture_values'] * 0.4 + 
-        df['belonging_score'] * 0.3 +
-        df['career_opp'] * 0.3
-    )
-    logger.info("Calculated Voluntās Meaningfulness Index")
+    df["purpose"] = df["culture_values"]
+    df["leadership"] = df["senior_mgmt"]
+    df["belonging"] = df[["work_life_balance", "diversity_inclusion"]].mean(axis=1, skipna=True)
+    df["growth"] = df["career_opp"]
+    df["mwq_proxy"] = df[["purpose", "leadership", "belonging", "growth"]].mean(axis=1, skipna=True)
+    logger.info("Calculated MWQ proxy (Purpose, Leadership, Belonging, Growth)")
     
     # ----------------------------------------------------------------------
-    # TEXT SIGNALS: Net sentiment proxy from review word counts
+    # TEXT SIGNALS: Net sentiment proxy from review word counts and polarity
     # ----------------------------------------------------------------------
     text_columns = ['pros', 'cons']
     if all(col in df.columns for col in text_columns):
+        analyzer = SentimentIntensityAnalyzer()
         df['pros_length'] = df['pros'].fillna('').str.len()
         df['cons_length'] = df['cons'].fillna('').str.len()
         df['engagement_signal'] = df['pros_length'] - df['cons_length']
+        df['pros_sentiment'] = df['pros'].fillna('').apply(lambda x: analyzer.polarity_scores(x)["compound"])
+        df['cons_sentiment'] = df['cons'].fillna('').apply(lambda x: analyzer.polarity_scores(x)["compound"])
+        df['net_sentiment'] = df['pros_sentiment'] - df['cons_sentiment']
         logger.info("Added text engagement signals")
     else:
         logger.info("No pros/cons columns found - skipping text features")
@@ -188,7 +227,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     # FINAL VALIDATION: Ensure engineered features are present
     # ----------------------------------------------------------------------
     engineered_features = [
-        'voluntas_index', 'belonging_score', 'engagement_signal',
+        'mwq_proxy', 'belonging_score', 'engagement_signal', 'net_sentiment',
         'belonging_incomplete', 'belonging_imputed'
     ]
     
@@ -201,13 +240,43 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def validate_processed_data(df: pd.DataFrame) -> None:
+    """Validate engineered dataset schema and critical ranges."""
+    schema = DataFrameSchema(
+        {
+            "overall_rating": Column(float, coerce=True, nullable=False, checks=Check.in_range(1.0, 5.0)),
+            "culture_values": Column(float, coerce=True, nullable=True, checks=Check.in_range(1.0, 5.0)),
+            "belonging_score": Column(float, coerce=True, nullable=False, checks=Check.in_range(1.0, 5.0)),
+            "career_opp": Column(float, coerce=True, nullable=True, checks=Check.in_range(1.0, 5.0)),
+            "mwq_proxy": Column(float, coerce=True, nullable=False, checks=Check.in_range(1.0, 5.0)),
+        },
+        strict=False,
+    )
+    schema.validate(df, lazy=True)
+
+
+def generate_data_quality_report(df: pd.DataFrame, output_path: Path) -> None:
+    """Generate a lightweight data quality report as JSON."""
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    report = {
+        "rows": int(len(df)),
+        "columns": int(len(df.columns)),
+        "missing_rates": {col: float(df[col].isna().mean()) for col in df.columns},
+        "numeric_ranges": {
+            col: {"min": float(df[col].min()), "max": float(df[col].max())} for col in numeric_cols
+        },
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(report, indent=2))
+    logger.info(f"Data quality report saved: {output_path}")
+
+
 def main():
     """Main execution pipeline with error handling"""
-    # Use robust path resolution (works from any directory)
-    # project_root = Path(__file__).resolve().parent.parent.parent
-    
-    input_path = Path(__file__).resolve().parent / "glassdoor_reviews.csv"
-    output_path = Path(__file__).resolve().parent / "processed" / "culture_intelligence_v1.parquet"
+    input_path = RAW_DATA_DIR / RAW_DATA_FILENAME
+    output_path = PROCESSED_DATA_DIR / PROCESSED_DATA_FILENAME
+    dated_output_path = PROCESSED_DATA_DIR / f"culture_intelligence_v1_{date.today().strftime('%Y%m%d')}.parquet"
+    report_path = PROJECT_ROOT / "artifacts" / f"data_quality_report_{date.today().strftime('%Y%m%d')}.json"
     
     # Ensure output directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -223,13 +292,26 @@ def main():
         # 3. Engineer features
         df_processed = clean_data(df_raw)
         
-        # 4. Save to Parquet (fast, compressed, preserves dtypes)
+        # 4. Validate processed data
+        validate_processed_data(df_processed)
+
+        # 5. Save to Parquet (fast, compressed, preserves dtypes)
         logger.info(f"Saving to: {output_path.name}")
         df_processed.to_parquet(
             output_path,
             index=False,
             compression="snappy"
         )
+
+        # Also write a versioned copy for reproducibility
+        df_processed.to_parquet(
+            dated_output_path,
+            index=False,
+            compression="snappy"
+        )
+
+        # 6. Write data quality report
+        generate_data_quality_report(df_processed, report_path)
         
         logger.info("Pipeline completed successfully")
         logger.info(f"Output: {len(df_processed):,} rows, {df_processed.shape[1]} columns")

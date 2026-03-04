@@ -1,14 +1,21 @@
 #!/usr/bin/env python
 """
 Module: audit_culture.py
-Description: EDA validation of Voluntās Meaningfulness Index
-Answers: "Is our engineered index a good signal or random noise?"
+Description: EDA validation of Voluntās MWQ proxy
+Answers: "Is our engineered MWQ proxy a good signal or random noise?"
 """
 
 import pandas as pd
 import numpy as np
 from pathlib import Path
 import logging
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
+from src.config import PROCESSED_DATA_DIR, PROCESSED_DATA_FILENAME
 
 # Setup Logging
 logging.basicConfig(
@@ -24,15 +31,15 @@ def load_processed_data(data_path: Path) -> pd.DataFrame:
     logger.info(f"Loaded {len(df):,} rows, {len(df.columns)} columns")
     return df
 
-def validate_voluntas_index(df: pd.DataFrame) -> dict:
+def validate_mwq_proxy(df: pd.DataFrame) -> dict:
     """
-    Core validation: Does voluntas_index actually predict overall_rating?
+    Core validation: Does mwq_proxy actually predict overall_rating?
     If not, we need to revise our feature engineering strategy.
     """
     # 1. CORRELATION ANALYSIS
-    # Calculate the correlation between the Voluntās Index and the Overall Rating
-    correlation = df['voluntas_index'].corr(df['overall_rating'])
-    logger.info(f"Voluntās Index vs Overall Rating: r={correlation:.3f}")
+    # Calculate the correlation between the MWQ proxy and the Overall Rating
+    correlation = df['mwq_proxy'].corr(df['overall_rating'])
+    logger.info(f"MWQ proxy vs Overall Rating: r={correlation:.3f}")
     
     # Interpretation: Evaluate the strength of the relationship
     if correlation > 0.7:
@@ -46,16 +53,16 @@ def validate_voluntas_index(df: pd.DataFrame) -> dict:
         logger.error("WEAK: Index needs redesign")
     
     # 2. RANKING VALIDATION (Top 10 Meaningfulness Leaders)
-    # Identify the top 10 firms with the highest Voluntās Index scores
-    logger.info("\nVOLUNTĀS MEANINGFULNESS LEADERS (Top 10):")
+    # Identify the top 10 firms with the highest MWQ proxy scores
+    logger.info("\nMEANINGFULNESS LEADERS (Top 10):")
     top_firms = (
-        df.groupby('firm')['voluntas_index']
+        df.groupby('firm')['mwq_proxy']
         .mean()
         .sort_values(ascending=False)
         .head(10)
     )
     for rank, (firm, score) in enumerate(top_firms.items(), 1):
-        # Log the rank, firm, and Voluntās Index score for each top firm
+        # Log the rank, firm, and MWQ proxy score for each top firm
         logger.info(f"   {rank:2d}. {firm:<30} | Score: {score:.2f}")
     
     # Calculate the burnout risk by subtracting the Belonging Score from the Career Opportunity Score
@@ -103,19 +110,19 @@ def detect_anomalies(df: pd.DataFrame) -> None:
         if len(invalid_ratings) > 0:
             logger.error(f"{len(invalid_ratings)} rows have invalid ratings")
 
-    # 3. VOLUNTĀS INDEX OUTLIERS
-    # Calculate the first quartile (Q1) and third quartile (Q3) of the 'voluntas_index' column
+    # 3. MWQ PROXY OUTLIERS
+    # Calculate the first quartile (Q1) and third quartile (Q3) of the 'mwq_proxy' column
     # The interquartile range (IQR) is the difference between the Q3 and Q1
-    q1 = df['voluntas_index'].quantile(0.25)
-    q3 = df['voluntas_index'].quantile(0.75)
+    q1 = df['mwq_proxy'].quantile(0.25)
+    q3 = df['mwq_proxy'].quantile(0.75)
     iqr = q3 - q1
-    # Get the rows where the 'voluntas_index' is more than 1.5 times the IQR away from the Q1 or Q3
+    # Get the rows where the 'mwq_proxy' is more than 1.5 times the IQR away from the Q1 or Q3
     # These rows are considered outliers and may need to be removed or transformed
     outliers = df[
-        (df['voluntas_index'] < q1 - 1.5 * iqr) | 
-        (df['voluntas_index'] > q3 + 1.5 * iqr)
+        (df['mwq_proxy'] < q1 - 1.5 * iqr) | 
+        (df['mwq_proxy'] > q3 + 1.5 * iqr)
     ]
-    logger.info(f"Voluntās Index outliers: {len(outliers):,} rows ({len(outliers)/len(df):.1%})")
+    logger.info(f"MWQ proxy outliers: {len(outliers):,} rows ({len(outliers)/len(df):.1%})")
 
 def generate_feature_report(df: pd.DataFrame) -> None:
     """Generate statistical report for each engineered feature"""
@@ -123,7 +130,7 @@ def generate_feature_report(df: pd.DataFrame) -> None:
     
     key_features = [
         'purpose_score', 'belonging_score', 'growth_score',
-        'voluntas_index', 'engagement_signal'
+        'mwq_proxy', 'engagement_signal'
     ]
     
     for feature in key_features:
@@ -143,15 +150,14 @@ def generate_feature_report(df: pd.DataFrame) -> None:
 
 if __name__ == "__main__":
     # Robust path resolution
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-    DATA_PATH = PROJECT_ROOT / "data" / "processed" / "culture_intelligence_v1.parquet"
+    DATA_PATH = PROCESSED_DATA_DIR / PROCESSED_DATA_FILENAME
     
     try:
         # 1. Load data
         df = load_processed_data(DATA_PATH)
         
         # 2. Validate the index
-        results = validate_voluntas_index(df)
+        results = validate_mwq_proxy(df)
         
         # 3. Detect anomalies
         detect_anomalies(df)
@@ -163,12 +169,9 @@ if __name__ == "__main__":
         
         # 5. Exit with error if index is weak
         if results['correlation'] < 0.5:
-            logger.error("Voluntās Index is too weak - redesign required")
+            logger.error("MWQ proxy is too weak - redesign required")
             exit(1)
             
     except Exception as e:
         logger.error(f"Audit failed: {str(e)}")
         raise
-
-outliers = df[(df['voluntas_index'] < 1.5) | (df['voluntas_index'] > 4.5)]
-print("Outlier firms:", outliers['firm'].value_counts().head())

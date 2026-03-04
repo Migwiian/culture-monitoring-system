@@ -1,40 +1,23 @@
-<< 'EOF'
-data/raw/
-data/processed/*.parquet
-*.csv
-*.parquet
-*.feather
-
-
-# Secrets
-.env
-*.env
-.kaggle/
-credentials/
-secrets/
-
 # Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-venv/
-*.egg-info/
+*.pyc
+*.pyo
+*.pyd
+.venv/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+# Jupyter
+.jupyter/
+.ipynb_checkpoints/
+
+# Artifacts / outputs
+artifacts/
+mlruns/
+mlartifacts/
+*.parquet
+*.db
 
 # OS
 .DS_Store
-Thumbs.db
 
-# MLflow
-mlruns/
-mlflow.db
-EOF
-# Project Specific
-.venv/
-mlartifacts/
+# uv
+.uv/

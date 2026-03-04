@@ -8,9 +8,9 @@ Most organizations treat culture as a "soft" metric, measured through infrequent
 Inspired by the Voluntās philosophy, this system addresses the fundamental right to a meaningful workplace. By operationalizing the Meaningful Work Quotient (MWQ) through a production-grade ML pipeline, we bridge the gap between existential philosophy and data-driven action. We transform raw, unstructured employee sentiment into a continuous stream of insights, enabling leaders to proactively nurture Purpose, Belonging, Growth, and Leadership.
 
 ## Technical Architecture
-* Data: 838,566 reviews processed from raw CSV into engineered Parquet format.
+* Data: 838,566 reviews processed from raw CSV into engineered Parquet format (latest + date-stamped version).
 * Models: Comparison between Linear Regression (Baseline) and XGBoost (Tuned).
-* Validation: Temporal split (pre-2020 vs. post-2020) to ensure the model handles modern workplace shifts.
+* Validation: Temporal split by review date (80/20) to reduce leakage and reflect real-world shifts.
 * Deployment: Containerized FastAPI service capable of real-time inference.
 * Orchestration: The entire ML pipeline is orchestrated using Kestra.
 
@@ -36,7 +36,7 @@ Prerequisites
     * Kestra (for orchestration)
 
 ### 1. Data Acquisition
-The `glassdoor_reviews.csv` dataset is required and should be placed in the `src/data/` directory.
+The `glassdoor_reviews.csv` dataset is required and should be placed in the `src/data/` directory. Processed outputs are written to `src/data/processed/` as both `culture_intelligence_v1.parquet` (latest) and a date-stamped version.
 
 To acquire the dataset, you can use the Kaggle API:
 1.  **Install Kaggle API:**
@@ -115,6 +115,15 @@ We evaluated multiple algorithms to predict employee satisfaction ratings (scale
 * XGBoost (Tuned): 0.541 MAE
 
 Selection Note: While both models performed similarly on the current feature set, XGBoost was selected as the final model due to its ability to capture non-linear relationships that may emerge as more complex features (like sentiment analysis) are added to the pipeline.
+
+## MWQ Proxy (Single Strategy)
+This project uses a single meaningfulness metric aligned to the Voluntās MWQ framework using dataset proxies:
+* Purpose = `culture_values`
+* Leadership = `senior_mgmt`
+* Belonging = mean(`work_life_balance`, `diversity_inclusion`)
+* Growth = `career_opp`
+
+MWQ Proxy = mean(Purpose, Leadership, Belonging, Growth)
 
 ## Monitoring
 The `src/monitoring/drift_report.py` script is a placeholder for future implementation of data and model drift monitoring. This is a crucial component of a production MLOps system to ensure the model's performance doesn't degrade over time.
