@@ -3,7 +3,7 @@
 **Operationalizing Meaningfulness: An MLOps-Driven Approach to Workplace Culture Monitoring**
 
 ## Problem Statement: The Gap Between Strategy and Soul
-Most organizations treat culture as a soft metric, measured through infrequent surveys that offer little more than a post-mortem of employee dissatisfaction. This creates a dangerous "Culture Lag"—where leadership is blind to the erosion of meaningfulness until it manifests as turnover or decreased productivity.
+Most organizations treat culture as a soft metric, measured through infrequent surveys that offer little more than a post-mortem of employee dissatisfaction. This creates a dangerous Culture Lag-where leadership is blind to the erosion of meaningfulness until it manifests as turnover or decreased productivity.
 
 Inspired by the Voluntās philosophy, this system addresses the fundamental right to a meaningful workplace. By operationalizing the Meaningful Work Quotient (MWQ) through a production-grade ML pipeline, we bridge the gap between existential philosophy and data-driven action. We transform raw, unstructured employee sentiment into a continuous stream of insights, enabling leaders to proactively nurture Purpose, Belonging, Growth, and Leadership.
 
